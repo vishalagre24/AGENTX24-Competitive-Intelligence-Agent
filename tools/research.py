@@ -1,24 +1,26 @@
 import requests
-import xml.etree.ElementTree as ET
-from urllib.parse import quote
 
 
-def research_competitor(company):
+def search_research(topic):
     """
-    Real-time competitor research using Google News RSS.
-    Returns recent news items for the requested company.
+    External Tool #2
+    Searches research publications using Crossref.
     """
 
-    query = quote(f"{company} AI technology competitor")
+    url = "https://api.crossref.org/works"
 
-    url = (
-        "https://news.google.com/rss/search?"
-        f"q={query}&hl=en-US&gl=US&ceid=US:en"
-    )
+    params = {
+        "query": topic,
+        "rows": 5,
+        "sort": "published",
+        "order": "desc"
+    }
 
     try:
+
         response = requests.get(
             url,
+            params=params,
             timeout=10,
             headers={
                 "User-Agent": "AGENTX24-Competitive-Intelligence-Agent/1.0"
@@ -27,38 +29,48 @@ def research_competitor(company):
 
         response.raise_for_status()
 
-        root = ET.fromstring(response.content)
+        data = response.json()
 
-        findings = []
+        items = data.get(
+            "message",
+            {}
+        ).get(
+            "items",
+            []
+        )
 
-        for item in root.findall(".//item")[:8]:
+        results = []
 
-            title = item.findtext("title")
-            link = item.findtext("link")
-            published = item.findtext("pubDate")
-            source = item.findtext("source")
+        for item in items:
 
-            if title:
-                findings.append({
-                    "title": title,
-                    "source": source or "Unknown",
-                    "published": published or "Unknown",
-                    "link": link or ""
-                })
+            title_list = item.get("title", [])
+
+            title = (
+                title_list[0]
+                if title_list
+                else "Unknown title"
+            )
+
+            results.append({
+                "title": title,
+                "doi": item.get("DOI", ""),
+                "publisher": item.get("publisher", ""),
+                "type": item.get("type", "")
+            })
 
         return {
-            "company": company,
-            "source": "Google News RSS",
-            "results_found": len(findings),
-            "findings": findings
+            "tool": "RESEARCH_SEARCH",
+            "topic": topic,
+            "results_found": len(results),
+            "results": results
         }
 
     except Exception as e:
 
         return {
-            "company": company,
-            "source": "Google News RSS",
+            "tool": "RESEARCH_SEARCH",
+            "topic": topic,
             "results_found": 0,
-            "findings": [],
+            "results": [],
             "error": str(e)
         }

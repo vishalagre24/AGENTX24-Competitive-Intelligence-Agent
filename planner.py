@@ -1,51 +1,49 @@
-def decide_task(user_input):
+def decide_tools(user_input):
     """
-    Decide which research sources are required.
+    Dynamically decide which external tools are relevant
+    to the user's research goal.
     """
 
     text = user_input.lower()
 
-    tasks = []
+    selected_tools = []
 
     # News / competitor activity
     if any(word in text for word in [
         "news",
+        "latest",
+        "announcement",
         "competitor",
-        "competitors",
-        "industry",
-        "market",
-        "strategy",
-        "activity"
+        "activity",
+        "update",
+        "track"
     ]):
-        tasks.append("NEWS_SEARCH")
+        selected_tools.append("NEWS_SEARCH")
 
-    # Patent research
-    if any(word in text for word in [
-        "patent",
-        "patents",
-        "intellectual property",
-        "ip"
-    ]):
-        tasks.append("PATENT_SEARCH")
-
-    # Scientific/research publications
+    # Scientific research
     if any(word in text for word in [
         "research",
-        "publication",
-        "publications",
         "paper",
         "papers",
+        "publication",
         "scientific",
-        "technology"
+        "study",
+        "academic"
     ]):
-        tasks.append("RESEARCH_SEARCH")
+        selected_tools.append("RESEARCH_SEARCH")
 
-    # If nothing specific was detected
-    if not tasks:
-        tasks.append("NEWS_SEARCH")
+    # Default: competitor tracking uses news
+    if not selected_tools:
+        selected_tools.append("NEWS_SEARCH")
 
-    # Multiple sources
-    if len(tasks) > 1:
-        return "MULTI_SOURCE_RESEARCH"
+    return selected_tools
 
-    return tasks[0]
+
+# Keep Task 1 compatibility
+def decide_task(user_input):
+    text = user_input.lower()
+
+    if "track" in text:
+        return "COMPETITOR_RESEARCH"
+
+    return "GENERAL"

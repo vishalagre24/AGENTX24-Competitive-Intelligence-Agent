@@ -1,173 +1,157 @@
 import os
+import json
 
 from dotenv import load_dotenv
 from google import genai
 
-from planner import decide_task
-from tools.research import research_competitor
-from tools.patents import search_patents
-from tools.publications import search_publications
+from planner import decide_tools
+from tools.news_tool import search_news
+from tools.research_tool import search_research
 
 
-# ==========================================
-# 1. LOAD ENVIRONMENT
-# ==========================================
+# --------------------------------------------------
+# Environment
+# --------------------------------------------------
 
 load_dotenv()
 
 api_key = os.getenv("GEMINI_API_KEY")
 
-print("KEY FOUND:", bool(api_key))
-
 if not api_key:
-    raise ValueError("GEMINI_API_KEY not found in .env")
+    raise ValueError("GEMINI_API_KEY not found")
 
 client = genai.Client(api_key=api_key)
 
 
-# ==========================================
-# 2. USER GOAL
-# ==========================================
+# --------------------------------------------------
+# USER GOAL
+# --------------------------------------------------
 
-user_input = input(
-    "\nEnter your research goal: "
-).strip()
+user_input = "Analyze OpenAI competitor news and research"
 
-if not user_input:
-    user_input = "Track OpenAI competitor activity"
-
+print("\n==============================")
+print("AGENTX24")
+print("==============================")
 
 print("\nUSER GOAL:")
 print(user_input)
 
 
-# ==========================================
-# 3. PLANNER
-# ==========================================
+# --------------------------------------------------
+# 1. PLANNER
+# --------------------------------------------------
 
-task = decide_task(user_input)
+selected_tools = decide_tools(user_input)
 
-print("\nPLANNER DECISION:")
-print(task)
+print("\nSELECTED TOOLS:")
 
-
-# ==========================================
-# 4. TOOL EXECUTION
-# ==========================================
-
-results = {}
+for tool in selected_tools:
+    print(f"- {tool}")
 
 
-if task == "NEWS_SEARCH":
+# --------------------------------------------------
+# 2. EXTRACT TOPIC
+# --------------------------------------------------
 
-    print("\nRunning News Tool...")
-
-    results["news"] = research_competitor("OpenAI")
-
-
-elif task == "PATENT_SEARCH":
-
-    print("\nRunning Patent Tool...")
-
-    results["patents"] = search_patents("OpenAI")
+company = "OpenAI"
+research_topic = "OpenAI generative AI"
 
 
-elif task == "RESEARCH_SEARCH":
+# --------------------------------------------------
+# 3. DYNAMIC TOOL EXECUTION
+# --------------------------------------------------
 
-    print("\nRunning Research Publication Tool...")
+research_data = {}
 
-    results["research"] = search_publications(
-        "generative AI"
+if "NEWS_SEARCH" in selected_tools:
+
+    print("\nEXECUTING NEWS_SEARCH...")
+
+    news_result = search_news(company)
+
+    research_data["news"] = news_result
+
+    print(
+        f"NEWS RESULTS: "
+        f"{news_result.get('results_found', 0)}"
     )
 
 
-elif task == "MULTI_SOURCE_RESEARCH":
+if "RESEARCH_SEARCH" in selected_tools:
 
-    print("\nRunning multiple research tools...")
+    print("\nEXECUTING RESEARCH_SEARCH...")
 
-    results["news"] = research_competitor("OpenAI")
+    research_result = search_research(research_topic)
 
-    results["patents"] = search_patents("OpenAI")
+    research_data["research"] = research_result
 
-    results["research"] = search_publications(
-        "generative AI"
+    print(
+        f"RESEARCH RESULTS: "
+        f"{research_result.get('results_found', 0)}"
     )
 
 
-else:
+# --------------------------------------------------
+# 4. DISPLAY COMBINED DATA
+# --------------------------------------------------
 
-    print("\nUnknown task.")
-    exit()
+print("\n==============================")
+print("COMBINED RESEARCH DATA")
+print("==============================")
 
-
-# ==========================================
-# 5. DISPLAY RAW RESULTS
-# ==========================================
-
-print("\n===== TOOL RESULTS =====")
-
-for name, data in results.items():
-
-    print(f"\n--- {name.upper()} ---")
-    print(data)
+print(json.dumps(research_data, indent=2))
 
 
-# ==========================================
-# 6. GEMINI ANALYSIS
-# ==========================================
+# --------------------------------------------------
+# 5. GEMINI ANALYSIS
+# --------------------------------------------------
+
+print("\nSENDING COMBINED RESULTS TO GEMINI...")
 
 prompt = f"""
-You are an autonomous Competitive Intelligence AI Agent.
+You are AGENTX24, an autonomous competitive intelligence AI agent.
 
-USER GOAL:
+User goal:
 {user_input}
 
-PLANNER DECISION:
-{task}
+The planner dynamically selected these tools:
+{selected_tools}
 
-RESEARCH RESULTS:
-{results}
+The tools returned the following research data:
 
-Analyze the available information and create a concise
-competitive intelligence report.
+{json.dumps(research_data, indent=2)}
+
+Analyze the available evidence and produce a concise,
+actionable competitive intelligence report.
 
 Include:
 
-1. Key Findings
-2. Important Trends
-3. Competitive Implications
-4. Potential Risks
-5. Recommended Actions
+1. Key findings
+2. Important developments
+3. Competitive implications
+4. Potential risks
+5. Recommended actions
 
-Rules:
-- Do not invent facts.
-- Clearly identify insufficient information.
-- Base conclusions on the supplied research results.
-- Prefer specific evidence over generic statements.
+Do not invent facts that are not present in the research data.
+Clearly distinguish evidence from interpretation.
 """
 
-
-print("\nSENDING DATA TO GEMINI...")
-
-
-try:
-
-    chat = client.chats.create(
-        model="gemini-3.6-flash"
-    )
-
-    response = chat.send_message(prompt)
-
-    print("\n===== INSIGHT REPORT =====")
-
-    if response.text:
-        print(response.text)
-    else:
-        print("Gemini returned an empty response.")
+response = client.models.generate_content(
+    model="gemini-3.6-flash",
+    contents=prompt
+)
 
 
-except Exception as e:
+# --------------------------------------------------
+# 6. FINAL REPORT
+# --------------------------------------------------
 
-    print("\nGEMINI ERROR:")
-    print(type(e).__name__)
-    print(str(e))
+print("\n==============================")
+print("FINAL INSIGHT REPORT")
+print("==============================")
+
+print(response.text)
+
+print("\n==============================")
+print("AGENTX24 RUN COMPLETE")
+print("==============================")
