@@ -1,27 +1,24 @@
+
 import requests
 import xml.etree.ElementTree as ET
 from urllib.parse import quote
 
 
-def search_news(company):
-    """
-    External Tool #1
-    Searches recent competitor/industry news.
-    """
-
-    query = quote(company)
+def get_competitor_news(company="OpenAI"):
 
     url = (
-        "https://news.google.com/rss/search"
-        f"?q={query}&hl=en-US&gl=US&ceid=US:en"
+        "https://news.google.com/rss/search?"
+        "q=" + quote(company + " AI competitors") +
+        "&hl=en-US&gl=US&ceid=US:en"
     )
 
     try:
+
         response = requests.get(
             url,
-            timeout=10,
+            timeout=20,
             headers={
-                "User-Agent": "AGENTX24-Competitive-Intelligence-Agent/1.0"
+                "User-Agent": "Mozilla/5.0"
             }
         )
 
@@ -29,30 +26,45 @@ def search_news(company):
 
         root = ET.fromstring(response.content)
 
-        articles = []
+        findings = []
 
-        for item in root.findall(".//item")[:5]:
+        for item in root.findall(".//item")[:10]:
 
-            articles.append({
-                "title": item.findtext("title", ""),
-                "link": item.findtext("link", ""),
-                "published": item.findtext("pubDate", ""),
-                "source": item.findtext("source", "")
+            title = item.findtext("title", "")
+            link = item.findtext("link", "")
+            published = item.findtext("pubDate", "")
+
+            source_node = item.find("source")
+
+            source = (
+                source_node.text
+                if source_node is not None
+                else "Google News"
+            )
+
+            findings.append({
+                "title": title,
+                "source": source,
+                "published": published,
+                "link": link
             })
 
         return {
-            "tool": "NEWS_SEARCH",
             "company": company,
-            "results_found": len(articles),
-            "results": articles
+            "source": "Google News RSS",
+            "results_found": len(findings),
+            "findings": findings
         }
 
     except Exception as e:
 
         return {
-            "tool": "NEWS_SEARCH",
             "company": company,
+            "source": "Google News RSS",
             "results_found": 0,
-            "results": [],
+            "findings": [],
             "error": str(e)
         }
+
+
+search_news = get_competitor_news
