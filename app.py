@@ -1,21 +1,38 @@
 
+import uuid
+
 import streamlit as st
 
-from tools.news_tool import get_competitor_news
+from task5_graph import graph
 
+
+# ============================================================
+# PAGE CONFIG
+# ============================================================
 
 st.set_page_config(
-    page_title="AGENTX24",
+    page_title="AGENTX24 - Task 5",
     page_icon="🤖",
     layout="wide"
 )
 
+
+# ============================================================
+# HEADER
+# ============================================================
+
 st.title("🤖 AGENTX24")
-st.subheader("Competitive Intelligence Agent")
+st.subheader("Task 5 — LangGraph Competitive Intelligence Agent")
 
 st.caption(
-    "Planner Agent → News Research Agent → Intelligence Analyst"
+    "Dynamic Planning → Parallel Agents → Failure Recovery → "
+    "Evidence Analysis → Evaluation"
 )
+
+
+# ============================================================
+# USER INPUT
+# ============================================================
 
 goal = st.text_input(
     "Enter your research goal",
@@ -23,137 +40,406 @@ goal = st.text_input(
 )
 
 
-if st.button("🚀 Run Agent", type="primary"):
+# ============================================================
+# RUN AGENT
+# ============================================================
+
+if st.button("🚀 Run Task 5 Agent", type="primary"):
 
     if not goal.strip():
         st.warning("Please enter a research goal.")
         st.stop()
 
-    st.info("Agent started...")
+    st.info("LangGraph agent started...")
 
+    # ========================================================
+    # INITIAL SHARED STATE
+    # ========================================================
 
-    # ==========================================
-    # AGENT 1 — PLANNER
-    # ==========================================
+    initial_state = {
+        "user_goal": goal,
 
-    st.write("## 🧠 Agent 1 — Planner")
+        "selected_tools": [],
 
-    st.success("COMPETITOR_RESEARCH")
+        "results": {},
 
-    st.write(
-        "**Responsibility:** Understand the research goal "
-        "and coordinate the intelligence workflow."
-    )
+        "errors": [],
 
+        "status": "STARTING",
 
-    # ==========================================
-    # AGENT 2 — NEWS RESEARCH
-    # ==========================================
+        "iteration": 0,
 
-    st.write("## 🔎 Agent 2 — News Research Agent")
+        "failed_tools": [],
 
-    st.write(
-        "**Responsibility:** Collect recent competitor news "
-        "and identify important competitive activity."
-    )
+        "fallback_used": False,
+
+        "evidence": [],
+
+        "conflict_detected": False,
+
+        "confidence": 0.0,
+
+        "decision": ""
+    }
+
+    # ========================================================
+    # CHECKPOINT CONFIG
+    # ========================================================
+
+    config = {
+        "configurable": {
+            "thread_id": (
+                "streamlit-task5-"
+                + uuid.uuid4().hex
+            )
+        }
+    }
+
+    # ========================================================
+    # EXECUTE LANGGRAPH
+    # ========================================================
 
     try:
 
-        with st.spinner("Collecting competitor information..."):
+        with st.spinner(
+            "Running autonomous LangGraph workflow..."
+        ):
 
-            result = get_competitor_news("OpenAI")
-
-        findings = result.get("findings", [])
-
-        if findings:
-
-            st.success(
-                f"News Research Agent completed — {len(findings)} sources found."
+            final_state = graph.invoke(
+                initial_state,
+                config=config
             )
 
-            for item in findings:
+    except Exception as exc:
 
-                title = item.get("title", "Untitled")
-                source = item.get("source", "Unknown")
-                published = item.get("published", "")
-                link = item.get("link", "")
+        st.error("Agent execution failed.")
 
-                with st.expander(title):
+        st.exception(exc)
 
-                    st.write(f"**Source:** {source}")
-                    st.write(f"**Published:** {published}")
-
-                    if link:
-                        st.markdown(
-                            f"[Read source]({link})"
-                        )
-
-        else:
-
-            st.warning("No research results returned.")
-
-    except Exception as e:
-
-        st.error("News Research Agent error:")
-        st.code(str(e))
+        st.stop()
 
 
-    # ==========================================
-    # AGENT 3 — INTELLIGENCE ANALYST
-    # ==========================================
+    # ========================================================
+    # 1. PLANNER
+    # ========================================================
 
-    st.write("## 📊 Agent 3 — Intelligence Analyst")
+    st.write("## 🧠 Agent 1 — Dynamic Planner")
 
-    st.write(
-        "**Responsibility:** Analyze collected signals, "
-        "identify competitive implications, risks and actions."
-    )
-
-    st.success("Intelligence analysis completed.")
-
-    st.markdown(
-        """
-### Competitive Intelligence Report
-
-**Key Findings**
-- Competitor news was collected from multiple sources.
-- Recent AI competitive activity can be monitored through the News Research Agent.
-- The workflow successfully connects research collection with analysis.
-
-**Important Trends**
-- AI competition is increasingly focused on pricing and model capabilities.
-- Major technology companies continue to compete in the AI market.
-- Strategic partnerships and product developments remain important signals.
-
-**Competitive Implications**
-- OpenAI should be monitored against major AI competitors.
-- Pricing and product changes can affect competitive positioning.
-- News monitoring can provide early signals of market changes.
-
-**Potential Risks**
-- Increased price competition.
-- Faster competitor product releases.
-- Rapid changes in the AI market.
-
-**Recommended Actions**
-1. Monitor competitor news continuously.
-2. Track pricing and product announcements.
-3. Add patent and research-publication monitoring.
-4. Compare signals across multiple reliable sources.
-        """
-    )
-
-
-    # ==========================================
-    # COLLABORATION
-    # ==========================================
-
-    st.write("## 🔄 Agent Collaboration")
-
-    st.info(
-        "Planner Agent → News Research Agent → Intelligence Analyst"
+    selected_tools = final_state.get(
+        "selected_tools",
+        []
     )
 
     st.success(
-        "✅ AGENTX24 Multi-Agent Research Workflow Completed"
+        f"Selected tools: {', '.join(selected_tools)}"
+    )
+
+    st.write(
+        "**Responsibility:** Dynamically determine which "
+        "research tools are relevant to the user's goal."
+    )
+
+
+    # ========================================================
+    # 2. PARALLEL RESEARCH
+    # ========================================================
+
+    st.write("## 🔎 Agent 2 — Parallel Research Orchestrator")
+
+    st.write(
+        "**Responsibility:** Execute selected research "
+        "agents concurrently and recover from failures."
+    )
+
+    results = final_state.get(
+        "results",
+        {}
+    )
+
+    if results:
+
+        st.success(
+            f"Research completed — "
+            f"{len(results)} result sources available."
+        )
+
+        for source_name, source_data in results.items():
+
+            with st.expander(
+                f"📚 {source_name.upper()}"
+            ):
+
+                if isinstance(
+                    source_data,
+                    dict
+                ):
+
+                    st.json(source_data)
+
+                else:
+
+                    st.write(source_data)
+
+    else:
+
+        st.warning(
+            "No research results returned."
+        )
+
+
+    # ========================================================
+    # 3. FAILURE RECOVERY
+    # ========================================================
+
+    st.write("## 🛠️ Failure Recovery")
+
+    failed_tools = final_state.get(
+        "failed_tools",
+        []
+    )
+
+    errors = final_state.get(
+        "errors",
+        []
+    )
+
+    fallback_used = final_state.get(
+        "fallback_used",
+        False
+    )
+
+    if failed_tools:
+
+        st.warning(
+            "Failed tools: "
+            + ", ".join(failed_tools)
+        )
+
+    else:
+
+        st.success(
+            "No tool failures detected."
+        )
+
+    if fallback_used:
+
+        st.success(
+            "✅ Fallback mechanism activated "
+            "and recovery completed."
+        )
+
+    if errors:
+
+        with st.expander("View execution errors"):
+
+            for error in errors:
+
+                st.code(error)
+
+
+    # ========================================================
+    # 4. EVIDENCE ANALYSIS
+    # ========================================================
+
+    st.write("## 🔬 Agent 3 — Evidence Analyzer")
+
+    evidence = final_state.get(
+        "evidence",
+        []
+    )
+
+    conflict_detected = final_state.get(
+        "conflict_detected",
+        False
+    )
+
+    if evidence:
+
+        st.write(
+            f"Evidence items analyzed: "
+            f"**{len(evidence)}**"
+        )
+
+        for item in evidence:
+
+            source = item.get(
+                "source",
+                "Unknown"
+            )
+
+            claim = item.get(
+                "claim",
+                "Unknown claim"
+            )
+
+            reliability = item.get(
+                "reliability",
+                0
+            )
+
+            st.markdown(
+                f"""
+**Source:** {source}
+
+**Claim:** {claim}
+
+**Reliability:** {reliability}
+"""
+            )
+
+    else:
+
+        st.warning(
+            "No evidence was available for analysis."
+        )
+
+
+    # ========================================================
+    # 5. CONFLICT DETECTION
+    # ========================================================
+
+    st.write("## ⚖️ Conflicting Evidence Resolution")
+
+    if conflict_detected:
+
+        st.warning(
+            "⚠️ Conflicting evidence detected."
+        )
+
+    else:
+
+        st.success(
+            "✅ No major evidence conflict detected."
+        )
+
+
+    # ========================================================
+    # 6. UNCERTAINTY / CONFIDENCE
+    # ========================================================
+
+    st.write("## 🎯 Confidence & Decision")
+
+    confidence = final_state.get(
+        "confidence",
+        0.0
+    )
+
+    decision = final_state.get(
+        "decision",
+        ""
+    )
+
+    col1, col2 = st.columns(2)
+
+    with col1:
+
+        st.metric(
+            "Confidence",
+            f"{confidence:.0%}"
+        )
+
+    with col2:
+
+        st.metric(
+            "Iteration",
+            final_state.get(
+                "iteration",
+                0
+            )
+        )
+
+    if decision:
+
+        st.info(
+            decision
+        )
+
+
+    # ========================================================
+    # 7. EVALUATOR
+    # ========================================================
+
+    st.write("## ✅ Agent 4 — Evaluator")
+
+    status = final_state.get(
+        "status",
+        "UNKNOWN"
+    )
+
+    if status == "PASSED":
+
+        st.success(
+            "TASK 5 AGENT EXECUTION PASSED"
+        )
+
+    else:
+
+        st.error(
+            f"Agent status: {status}"
+        )
+
+
+    # ========================================================
+    # 8. CHECKPOINT
+    # ========================================================
+
+    st.write("## 💾 LangGraph Checkpoint")
+
+    try:
+
+        checkpoint = graph.get_state(
+            config
+        )
+
+        st.success(
+            "Checkpoint successfully created."
+        )
+
+        with st.expander(
+            "View shared checkpoint state"
+        ):
+
+            st.json(
+                dict(
+                    checkpoint.values
+                )
+            )
+
+    except Exception as exc:
+
+        st.warning(
+            "Checkpoint could not be displayed."
+        )
+
+        st.code(
+            str(exc)
+        )
+
+
+    # ========================================================
+    # FINAL SUMMARY
+    # ========================================================
+
+    st.write("## 🏁 Task 5 Final Result")
+
+    st.markdown(
+        f"""
+**Status:** `{status}`
+
+**Selected Tools:** `{selected_tools}`
+
+**Failed Tools:** `{failed_tools}`
+
+**Fallback Used:** `{fallback_used}`
+
+**Conflict Detected:** `{conflict_detected}`
+
+**Confidence:** `{confidence:.0%}`
+
+**Decision:** {decision}
+"""
+    )
+
+    st.success(
+        "✅ AGENTX24 Task 5 LangGraph workflow completed."
     )
